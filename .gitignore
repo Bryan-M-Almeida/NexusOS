@@ -1,0 +1,6 @@
+build/
+*.img
+*.iso
+*.vdi
+*.vmdk
+__pycache__/
