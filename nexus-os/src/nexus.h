@@ -135,6 +135,8 @@ typedef int (*boot_step_fn)(const char **msg); /* executa a proxima etapa do boo
 /* Toca a intro executando as etapas de boot no meio dela (log no HUD).
  * Retorna 0 sem fazer nada se nao houver VBE 32 bpp / memoria: use o boot em texto. */
 int nexus_intro_play(boot_step_fn next);
+/* Animacao de desligamento (antes de power_off); sem VBE nao faz nada. */
+void nexus_outro_play(void);
 
 /* ---- start.asm ---- */
 extern void enter_unreal(void);

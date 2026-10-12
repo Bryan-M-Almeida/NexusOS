@@ -7,7 +7,7 @@ Roda em máquina virtual e em pendrive.
 | Requisito | Como |
 |---|---|
 | **Ligar** | Boot: bootloader -> kernel -> animação NEXUS, que inicializa o sistema e mostra o log (`[ OK ]`) -> shell. Sem vídeo VBE: tela de texto com barra de carregamento. Em PC real, "ligar" = botão de energia + boot pelo pendrive |
-| **Desligar** | Comando `shutdown`: ACPI real (lê FADT/DSDT `_S5_`), com fallback para QEMU/Bochs/VirtualBox e APM |
+| **Desligar** | Comando `shutdown`: animação de encerramento (aros recolhem, `ENCERRANDO SISTEMAS…`), depois ACPI real (lê FADT/DSDT `_S5_`), com fallback para QEMU/Bochs/VirtualBox e APM |
 | **Listar arquivos do armazenamento** | `ls [caminho]`, `tree` |
 | **Criar pasta** | `mkdir <pasta>` (aceita caminhos: `mkdir projetos/app`) |
 | **Editar pasta** | `rename <de> <para>` (alias `mv`) |

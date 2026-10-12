@@ -262,6 +262,7 @@ void shell_run(int ok)
         else if (!strcmp(c, "shutdown") || !strcmp(c, "poweroff") || !strcmp(c, "desligar"))
         {
             cputs(C_YELLOW, "Desligando NEXUS.OS...\n");
+            nexus_outro_play();
             power_off();
         }
         else if (!strcmp(c, "reboot") || !strcmp(c, "reiniciar"))

@@ -55,6 +55,14 @@ static s32 t_online = 1 << 28; /* nome entra, status muda (definido quando o boo
 #define T_FADE (t_online + 3600)    /* comeca o fade para preto */
 #define T_END (t_online + 4300)
 #define T_ONLINE t_online
+
+/* Desligamento: a entrada tocada ao contrario, do aro mais interno para o externo */
+static int outro;
+static u32 title_fade = 256; /* opacidade extra do titulo/sigla (fade de saida) */
+#define OUT_RING_MS 1200
+#define OUT_FADE 2000
+#define OUT_END 2600
+static const u16 OUT_DELAY[9] = {100, 1000, 850, 700, 550, 400, 250, 100, 0};
 #define BOOT_MS 1800 /* entrada de cada aro */
 
 /* ------------------------------------------------------------------ estado */
@@ -388,10 +396,11 @@ struct gstate
 
 static void group_state(s32 t, int g, struct gstate *s)
 {
-    s32 e = ease(ease_out_tab, prog(t, GRP[g].delay, BOOT_MS));
+    s32 u = outro ? 4096 - prog(t, OUT_DELAY[g], OUT_RING_MS) : prog(t, GRP[g].delay, BOOT_MS);
+    s32 e = ease(ease_out_tab, u);
     s->sc = 2048 + (u32)e / 2;                              /* 0.5 -> 1 */
     u32 rot = (u32)(65536 - ((30948 * (4096 - e)) >> 12)); /* -170 graus -> 0 */
-    s->op = (u32)(ease(ease_out_tab, prog(t, GRP[g].delay, BOOT_MS * 55 / 100)) * 256) >> 12;
+    s->op = (u32)(ease(ease_out_tab, imin(u * 100 / 55, 4096)) * 256) >> 12; /* opaco em 55% */
     if (GRP[g].dir == 2)
     { /* oscila entre -28 e +28 graus, 7 s por ida, ease-in-out, vai e volta */
         u32 k = (u32)t / GRP[g].period, f = (u32)t % GRP[g].period;
@@ -806,7 +815,8 @@ struct fx
 /* Desenha um mapa com escala k (4096 = 1) em torno do pivo (local); origem local em (ox, oy) na tela */
 static void draw_map(const struct gmap *m, s32 ox, s32 oy, s32 pvx, s32 pvy, s32 k, const struct fx *e)
 {
-    if (k < 64 || !e->opa)
+    u32 opa = (e->opa * title_fade) >> 8;
+    if (k < 64 || !opa)
         return;
     s32 sx0 = (ox + pvx + (s32)(((s64)(m->x16 - pvx) * k) >> 12)) >> 4;
     s32 sy0 = (oy + pvy + (s32)(((s64)(m->y16 - pvy) * k) >> 12)) >> 4;
@@ -849,10 +859,10 @@ static void draw_map(const struct gmap *m, s32 ox, s32 oy, s32 pvx, s32 pvy, s32
 #undef SAMPLE
             u32 body = (u32)(sa + (((sb - sa) * (s32)e->mixb) >> 8));
             u32 c = row[sx];
-            u32 ga = ((((u32)sg * e->galpha) >> 8) * e->opa) >> 8;
+            u32 ga = ((((u32)sg * e->galpha) >> 8) * opa) >> 8;
             if (ga)
                 c = blend(c, e->gcol, ga);
-            u32 ba = (body * e->opa) >> 8;
+            u32 ba = (body * opa) >> 8;
             if (ba)
                 c = blend(c, col, ba + (ba >> 7));
             row[sx] = c;
@@ -1027,7 +1037,7 @@ static void draw_title(s32 t)
     p = prog(t, T_ACRONYM, 1000);
     if (p)
     {
-        u32 op = (u32)(ease(ease_tab, p) * 256) >> 12;
+        u32 op = (((u32)(ease(ease_tab, p) * 256) >> 12) * title_fade) >> 8;
         s32 ls = fnt_mono_small.size16 * 12 / 100;
         for (int l = 0; l < 2 && acr_len[l]; l++)
         {
@@ -1110,7 +1120,7 @@ static void str_cat(char *d, const char *s)
 
 static void draw_status(s32 t)
 {
-    const char *s = t < T_ONLINE ? "INICIALIZANDO SISTEMAS~" : "SISTEMA ONLINE";
+    const char *s = outro ? "ENCERRANDO SISTEMAS~" : t < T_ONLINE ? "INICIALIZANDO SISTEMAS~" : "SISTEMA ONLINE";
     const struct font *f = &fnt_mono_status;
     s32 ls = f->size16 * 4 / 100;
     s32 tw = text_width(f, s, ls), total = tw + (6 + 8) * 16;
@@ -1120,7 +1130,7 @@ static void draw_status(s32 t)
 
     /* ponto: vermelho piscando (steps) ou azul pulsando devagar */
     u32 op, col;
-    if (t < T_ONLINE)
+    if (outro || t < T_ONLINE)
     {
         s32 c = t % 900;
         op = c < 225 ? 256 : c < 450 ? 160 : c < 675 ? 64 : 160;
@@ -1205,9 +1215,19 @@ static void render(s32 t, int full, int baked, u32 fade)
 
     if (!baked)
     {
-        draw_corners((u32)(ease(ease_tab, prog(t, 400, 1000)) * 256) >> 12, bb);
-        draw_sideticks((u32)(ease(ease_tab, prog(t, 800, 1000)) * 256) >> 12, bb);
-        draw_connectors(ease(ease_out_tab, prog(t, 1100, 1400)), bb);
+        if (outro)
+        {
+            u32 op = 256 - ((u32)(ease(ease_tab, prog(t, 500, 700)) * 256) >> 12);
+            draw_corners(op, bb);
+            draw_sideticks(op, bb);
+            draw_connectors(ease(ease_out_tab, 4096 - prog(t, 200, 1000)), bb);
+        }
+        else
+        {
+            draw_corners((u32)(ease(ease_tab, prog(t, 400, 1000)) * 256) >> 12, bb);
+            draw_sideticks((u32)(ease(ease_tab, prog(t, 800, 1000)) * 256) >> 12, bb);
+            draw_connectors(ease(ease_out_tab, prog(t, 1100, 1400)), bb);
+        }
     }
 
     struct gstate gs[9];
@@ -1216,7 +1236,7 @@ static void render(s32 t, int full, int baked, u32 fade)
     for (u32 i = 0; i < NFEATS; i++)
         draw_feat(&FEATS[i], &gs[FEATS[i].grp]);
 
-    draw_title(t);
+    draw_title(outro ? 1 << 20 : t); /* no desligamento o titulo parte do estado final */
     draw_status(t);
     draw_log(t);
 
@@ -1375,4 +1395,52 @@ int nexus_intro_play(boot_step_fn next)
     outb(0x40, 0);
     vid_init(); /* volta ao modo texto 80x25 */
     return 1;
+}
+
+/* Animacao de desligamento: os aros encolhem, o HUD recolhe e aparece ENCERRANDO SISTEMAS.
+ * Volta ao modo texto no fim (para a mensagem de erro, se o desligamento falhar). */
+void nexus_outro_play(void)
+{
+    outro = 1;
+    n_log = 0;
+    t_online = 0;
+    if (!setup())
+    {
+        outro = 0;
+        return;
+    }
+    outb(0x43, 0x34);
+    outb(0x40, 0);
+    outb(0x40, 0);
+    while (key_hit())
+        getkey();
+
+    u32 t0 = pit_now();
+    int first = 1;
+    for (;;)
+    {
+        u32 fs = pit_now();
+        s32 t = (s32)((fs - t0) / 1193);
+        if (t >= OUT_END)
+            break;
+        if (key_hit())
+        {
+            getkey(); /* qualquer tecla desliga na hora */
+            break;
+        }
+        enter_unreal();
+        title_fade = 256 - ((u32)(ease(ease_tab, prog(t, 0, 600)) * 256) >> 12);
+        u32 fade = t < OUT_FADE ? 256 : 256 - (u32)(ease(ease_tab, prog(t, OUT_FADE, OUT_END - OUT_FADE)) * 256 >> 12);
+        render(t, first, 0, fade);
+        first = 0;
+        while (pit_now() - fs < 19886)
+            asm volatile("pause");
+    }
+
+    outb(0x43, 0x36);
+    outb(0x40, 0);
+    outb(0x40, 0);
+    vid_init();
+    outro = 0;
+    title_fade = 256;
 }
