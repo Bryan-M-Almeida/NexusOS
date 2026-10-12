@@ -1,7 +1,7 @@
 /* System messages in Portuguese, English and Spanish */
 #include "nexus.h"
 
-u8 lang = LANG_PT;
+u8 lang = LANG_EN; /* English until the saved language is known */
 u8 lang_set;
 static u8 can_save;
 

@@ -89,9 +89,9 @@ print:
 drive:    db 0
 remain:   dw 0
 chunk:    dw 0
-msg_boot:  db "NEXUS.OS: carregando kernel...", 13, 10, 0
-msg_noedd: db "ERRO: BIOS sem LBA estendido", 13, 10, 0
-msg_err:   db "ERRO: falha ao ler o disco", 13, 10, 0
+msg_boot:  db "NEXUS.OS: loading kernel...", 13, 10, 0
+msg_noedd: db "ERROR: no BIOS LBA support", 13, 10, 0
+msg_err:   db "ERROR: disk read failed", 13, 10, 0
 
 dap:      db 0x10, 0
 dap_cnt:  dw 0

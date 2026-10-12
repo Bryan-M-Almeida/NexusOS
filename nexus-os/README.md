@@ -24,7 +24,9 @@ Logo após carregar o kernel, o sistema troca para vídeo gráfico (VBE, 32 bpp,
 - `tools/mkassets.py` – gera `build/assets.h` (glifos Michroma / JetBrains Mono em 4 bits + tabelas de atan/easing). Fontes em `tools/fonts/`, licença SIL OFL 1.1
 
 ## Idiomas
-O sistema fala **português, inglês e espanhol**. No primeiro boot, um seletor animado aparece dentro dos aros (setas ou 1/2/3 e Enter); enquanto você navega, o status e o log de boot já mudam para o idioma destacado. A escolha fica salva no disco (superbloco do NXFS) e os próximos boots entram direto nela. Para trocar depois: `idioma` (ou `language`) abre o seletor, ou `idioma pt|en|es` troca direto. No CD/ISO (somente leitura) o seletor aparece a cada boot. Sem vídeo VBE, a escolha é feita num menu em modo texto.
+O sistema fala **português, inglês e espanhol**. No primeiro boot, um seletor animado aparece dentro dos aros (setas ou 1/2/3 e Enter); enquanto você navega, o status e o log de boot já mudam para o idioma destacado. A escolha fica salva no disco (superbloco do NXFS) e os próximos boots entram direto nela. Para trocar depois: `idioma` (ou `language`) abre o seletor, ou `idioma pt|en|es` troca direto. No CD/ISO (somente leitura) o seletor aparece a cada boot. Sem vídeo VBE, a escolha é feita num menu em modo texto. Tudo o que aparece antes de o sistema saber o idioma (bootloader, início do boot) é em inglês.
+
+O modo texto (shell e boot sem VBE) usa a **paleta NEXUS**: os 16 registradores de cor da VGA são reprogramados com as cores da identidade visual (fundo `#030508`, texto prata, azul `#6fb3ff`, vermelho `#e5322d`).
 
 - `src/lang.c` – todas as mensagens do sistema nos três idiomas (`tr(id)`)
 - Glifos e tabelas da intro ficam em `build/assets.bin`, gravado no setor 256 da imagem e carregado para a memória alta no boot (assim não ocupam o segmento de 64 KB do kernel)

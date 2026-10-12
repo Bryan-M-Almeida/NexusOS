@@ -81,8 +81,8 @@ print:
 drive:    db 0
 remain:   dw 0
 chunk:    dw 0
-msg_boot: db "NEXUS.OS (ISO): carregando...", 13, 10, 0
-msg_err:  db "ERRO: falha ao ler o CD", 13, 10, 0
+msg_boot: db "NEXUS.OS (ISO): loading...", 13, 10, 0
+msg_err:  db "ERROR: CD read failed", 13, 10, 0
 
 dap:      db 0x10, 0
 dap_cnt:  dw 0
