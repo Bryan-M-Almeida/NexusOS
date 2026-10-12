@@ -91,6 +91,7 @@ void kmain(u32 drive)
         failline("Disco/BIOS sem suporte a LBA ou disco muito pequeno");
 
     delay(10);
+    nexus_intro_play();
     vid_clear();
     cputs(C_CYAN, "NEXUS.OS");
     cputs(C_GRAY, " v0.1  -  pronto.\n");

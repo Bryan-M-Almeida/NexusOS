@@ -126,7 +126,11 @@ void power_reboot(void);
 /* ---- shell.c ---- */
 void shell_run(int fs_ok);
 
+/* ---- intro.c (animacao de abertura NEXUS, pula sozinha sem VBE) ---- */
+void nexus_intro_play(void);
+
 /* ---- start.asm ---- */
 extern void enter_unreal(void);
+extern u32 boot_base; /* LBA onde a imagem comeca no disco (0, ou o NEXUS.IMG dentro da ISO hibrida) */
 
 #endif
