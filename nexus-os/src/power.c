@@ -127,7 +127,7 @@ void power_off(void)
     outw(0xB004, 0x2000); /* Bochs / older QEMU */
     outw(0x4004, 0x3400); /* VirtualBox */
     apm_off();
-    cputs(C_YELLOW, "\nNao foi possivel desligar por software.\nPode desligar o computador manualmente.\n");
+    cputs(C_YELLOW, tr(M_POWER_FAIL));
     for (;;)
         asm volatile("cli; hlt");
 }

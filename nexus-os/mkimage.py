@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Build nexus.img: boot sector (LBA 0) + kernel (LBA 1..) + NXFS (LBA 128) with sample folders."""
+"""Build nexus.img: boot sector (LBA 0) + kernel (LBA 1..) + NXFS (LBA 128) with sample folders
++ intro assets (LBA 256)."""
 import struct, sys
-FS_LBA, FS_MAX, IMG_SECT = 128, 224, 2048
-boot, kernel, out = (open(sys.argv[1],'rb').read(), open(sys.argv[2],'rb').read(), sys.argv[3])
+FS_LBA, FS_MAX, IMG_SECT, ASSET_LBA = 128, 224, 2048, 256
+boot, kernel, assets, out = (open(sys.argv[1],'rb').read(), open(sys.argv[2],'rb').read(),
+                             open(sys.argv[3],'rb').read(), sys.argv[4])
 assert len(boot) == 512
 assert len(kernel) <= (FS_LBA-1)*512, "kernel exceeds 63 KiB"
 
@@ -19,5 +21,7 @@ img[0:512] = boot
 img[512:512+len(kernel)] = kernel
 img[FS_LBA*512:FS_LBA*512+512] = sb
 img[(FS_LBA+1)*512:(FS_LBA+1)*512+len(table)] = table
+assert ASSET_LBA*512 + len(assets) <= len(img), "assets do not fit in the image"
+img[ASSET_LBA*512:ASSET_LBA*512+len(assets)] = assets
 open(out,'wb').write(img)
 print(f"{out}: {len(img)//1024} KiB, kernel {len(kernel)} bytes")

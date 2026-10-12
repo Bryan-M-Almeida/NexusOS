@@ -9,5 +9,5 @@ SECTIONS {
     .bss    : { *(.bss .bss.*) *(COMMON) }
     __bss_end = .;
     /DISCARD/ : { *(.comment) *(.note*) *(.eh_frame*) }
-    ASSERT(__bss_end < 0xF000, "kernel grande demais para o segmento de 64KB")
+    ASSERT(__bss_end < 0xF000, "kernel too large for the 64 KiB segment")
 }

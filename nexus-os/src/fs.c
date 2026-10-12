@@ -8,6 +8,7 @@
 struct fs_ent fs_tab[FS_MAX];
 static u8 sect[512];
 static const char MAGIC[8] = {'N', 'E', 'X', 'U', 'S', 'F', 'S', '1'};
+static u8 sb_lang; /* superblock byte 16: language + 1 (0 = not set) */
 
 #define TAB_SECTORS ((FS_MAX * 32) / 512)
 
@@ -26,6 +27,7 @@ int fs_mount(void)
             return -1;
     if (sect[8] != (u8)(FS_MAX & 0xFF) || sect[9] != (u8)(FS_MAX >> 8))
         return -1;
+    sb_lang = sect[16];
     for (int s = 0; s < TAB_SECTORS; s++)
         if (disk_read(FS_LBA + 1 + s, (u8 *)fs_tab + s * 512))
             return -1;
@@ -44,12 +46,23 @@ int fs_format(void)
     memcpy(sect, MAGIC, 8);
     sect[8] = (u8)(FS_MAX & 0xFF);
     sect[9] = (u8)(FS_MAX >> 8);
+    sect[16] = sb_lang;
     if (disk_write(FS_LBA, sect))
         return FS_E_IO;
     for (int s = 0; s < TAB_SECTORS; s++)
         if (disk_write(FS_LBA + 1 + s, (u8 *)fs_tab + s * 512))
             return FS_E_IO;
     return 0;
+}
+
+u8 fs_get_lang(void) { return sb_lang; }
+
+int fs_set_lang(u8 v)
+{
+    if (disk_read(FS_LBA, sect))
+        return FS_E_IO;
+    sect[16] = sb_lang = v;
+    return disk_write(FS_LBA, sect) ? FS_E_IO : 0;
 }
 
 static int find(int parent, const char *name)
@@ -268,23 +281,23 @@ const char *fs_strerror(int e)
     switch (e)
     {
     case FS_E_NOTFOUND:
-        return "nao encontrado";
+        return tr(M_FS_NOTFOUND);
     case FS_E_EXISTS:
-        return "ja existe um item com esse nome";
+        return tr(M_FS_EXISTS);
     case FS_E_FULL:
-        return "armazenamento cheio (limite de entradas)";
+        return tr(M_FS_FULL);
     case FS_E_NOTEMPTY:
-        return "a pasta nao esta vazia (use rm -r)";
+        return tr(M_FS_NOTEMPTY);
     case FS_E_INVALID:
-        return "nome ou caminho invalido";
+        return tr(M_FS_INVALID);
     case FS_E_IO:
-        return "erro de escrita/leitura no disco";
+        return tr(M_FS_IO);
     case FS_E_ROOT:
-        return "a raiz nao pode ser alterada";
+        return tr(M_FS_ROOT);
     case FS_E_INUSE:
-        return "voce esta dentro dessa pasta (saia com cd)";
+        return tr(M_FS_INUSE);
     case FS_E_NOTDIR:
-        return "nao e uma pasta";
+        return tr(M_FS_NOTDIR);
     }
-    return "erro desconhecido";
+    return tr(M_FS_UNKNOWN);
 }

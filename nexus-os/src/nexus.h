@@ -107,6 +107,8 @@ struct fs_ent
 extern struct fs_ent fs_tab[FS_MAX];
 
 int fs_mount(void);
+u8 fs_get_lang(void);    /* saved language (0 = not set) */
+int fs_set_lang(u8 v);
 int fs_format(void);
 int fs_walk(int cwd, const char *path);
 int fs_split(int cwd, const char *path, int *parent, char *name);
@@ -126,17 +128,50 @@ void power_reboot(void);
 /* ---- shell.c ---- */
 void shell_run(int fs_ok);
 
+/* ---- lang.c ---- */
+#define LANG_PT 0
+#define LANG_EN 1
+#define LANG_ES 2
+#define LANG_COUNT 3
+enum
+{
+    M_BOOT_VIDEO_TEXT, M_BOOT_VBE, M_BOOT_KBD, M_BOOT_DISK, M_BOOT_NODISK, M_BOOT_ISO,
+    M_BOOT_MOUNT, M_BOOT_NOFS, M_BOOT_NEWFS, M_BOOT_FSFAIL, M_TAG_FAIL, M_SUBTITLE,
+    M_STARTING, M_READY,
+    M_ST_INIT, M_ST_ONLINE, M_ST_OFF, M_ST_SELECT, M_SEL_HINT,
+    M_HINT, M_ERR, M_DIR_TAG, M_FILE_TAG, M_EMPTY, M_NDIRS, M_NFILES, M_STORAGE,
+    M_INFO_DRIVE, M_INFO_SIZE, M_SECTORS, M_INFO_ISO, M_INFO_USED, M_INFO_LANG,
+    M_HELP_TITLE, M_HELP, M_FMT_CONFIRM, M_FMT_WORD, M_CANCELLED, M_FORMATTED,
+    M_SHUTTING, M_REBOOTING, M_NOSTORAGE, M_USE_MKDIR, M_USE_TOUCH, M_USE_RMDIR,
+    M_USE_RM, M_USE_RENAME, M_USE_LANG, M_UNKNOWN, M_TYPE_HELP, M_LANG_CHANGED,
+    M_POWER_FAIL,
+    M_FS_NOTFOUND, M_FS_EXISTS, M_FS_FULL, M_FS_NOTEMPTY, M_FS_INVALID, M_FS_IO,
+    M_FS_ROOT, M_FS_INUSE, M_FS_NOTDIR, M_FS_UNKNOWN,
+    M_COUNT
+};
+extern u8 lang;     /* current language */
+extern u8 lang_set; /* 1 once chosen or loaded from disk */
+extern const char *const LANG_NAME_GFX[LANG_COUNT];
+extern const char *const LANG_NAME_TXT[LANG_COUNT];
+const char *tr(int id);
+void lang_attach_fs(void);
+void lang_choose(int l); /* sets and saves the language */
+int lang_parse(const char *s);
+int lang_menu_text(void);
+
 /* ---- intro.c (NEXUS animations) ---- */
 #define BOOT_END (-1)
 #define BOOT_OK 0
 #define BOOT_WARN 1
 #define BOOT_FAIL 2
-typedef int (*boot_step_fn)(const char **msg); /* runs the next boot step */
+typedef int (*boot_step_fn)(int *msg); /* runs the next boot step, msg = message id */
 /* Plays the intro and runs the boot steps during it.
  * Returns 0 without doing anything if graphics are unavailable. */
 int nexus_intro_play(boot_step_fn next);
 /* Shutdown animation, played before power_off(); no-op without graphics. */
 void nexus_outro_play(void);
+/* Animated language selector; returns the language or -1 without graphics. */
+int nexus_lang_play(void);
 
 /* ---- start.asm ---- */
 extern void enter_unreal(void);

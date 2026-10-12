@@ -6,7 +6,7 @@ static int fs_ok = 0;
 
 static void err(int code)
 {
-    cputs(C_RED, "erro: ");
+    cputs(C_RED, tr(M_ERR));
     cputs(C_RED, fs_strerror(code));
     putc('\n');
 }
@@ -44,12 +44,12 @@ static void print_entry(int i)
 {
     if (fs_tab[i].type == FS_DIR)
     {
-        cputs(C_CYAN, "  <PASTA>  ");
+        cputs(C_CYAN, tr(M_DIR_TAG));
         cputs(C_CYAN, fs_tab[i].name);
     }
     else
     {
-        cputs(C_NORMAL, "  <ARQ>    ");
+        cputs(C_NORMAL, tr(M_FILE_TAG));
         cputs(C_NORMAL, fs_tab[i].name);
     }
     putc('\n');
@@ -83,12 +83,12 @@ static void cmd_ls(const char *arg)
                 nf++;
         }
     if (!nd && !nf)
-        cputs(C_GRAY, "  (vazio)\n");
+        cputs(C_GRAY, tr(M_EMPTY));
     cputs(C_GRAY, "  ");
     putu((u32)nd);
-    cputs(C_GRAY, " pasta(s), ");
+    cputs(C_GRAY, tr(M_NDIRS));
     putu((u32)nf);
-    cputs(C_GRAY, " arquivo(s)\n");
+    cputs(C_GRAY, tr(M_NFILES));
 }
 
 static void tree(int d, int depth)
@@ -166,47 +166,41 @@ static void cmd_rename(const char *old, const char *nw)
 static void cmd_info(void)
 {
     u32 s = disk_sectors();
-    cputs(C_YELLOW, "Armazenamento\n");
-    puts("  Drive BIOS : 0x");
+    cputs(C_YELLOW, tr(M_STORAGE));
+    puts(tr(M_INFO_DRIVE));
     puthex(disk_drive(), 2);
     putc('\n');
-    puts("  Tamanho    : ");
+    puts(tr(M_INFO_SIZE));
     putu(s);
-    puts(" setores (");
+    puts(tr(M_SECTORS));
     putu(s / 2048);
     puts(" MiB)\n");
     if (disk_is_cd())
-        cputs(C_YELLOW, "  Modo       : ISO (alteracoes nao persistem)\n");
+        cputs(C_YELLOW, tr(M_INFO_ISO));
     puts("  NXFS       : ");
     putu((u32)fs_used());
     putc('/');
     putu(FS_MAX);
-    puts(" entradas usadas\n");
+    puts(tr(M_INFO_USED));
+    puts(tr(M_INFO_LANG));
+    puts(LANG_NAME_TXT[lang]);
+    putc('\n');
 }
 
 static void cmd_help(void)
 {
-    cputs(C_YELLOW, "Comandos do NEXUS.OS\n");
-    puts("  ls [caminho]          lista arquivos e pastas\n");
-    puts("  tree                  lista tudo em arvore\n");
-    puts("  cd <pasta> | pwd      navegar\n");
-    puts("  mkdir <pasta>         cria pasta\n");
-    puts("  rename <de> <para>    renomeia pasta/arquivo (alias: mv)\n");
-    puts("  rmdir <pasta>         exclui pasta vazia\n");
-    puts("  rm [-r] <item>        exclui arquivo ou pasta (-r: com conteudo)\n");
-    puts("  touch <arquivo>       cria arquivo vazio\n");
-    puts("  info | format         dados do disco / apaga o NXFS\n");
-    puts("  clear | reboot | shutdown\n");
+    cputs(C_YELLOW, tr(M_HELP_TITLE));
+    puts(tr(M_HELP));
 }
 
 static void cmd_format(void)
 {
     char c[8];
-    cputs(C_RED, "Isso APAGA todas as pastas e arquivos. Digite SIM para confirmar: ");
+    cputs(C_RED, tr(M_FMT_CONFIRM));
     readline(c, sizeof c, 0);
-    if (strcmp(c, "SIM"))
+    if (strcmp(c, tr(M_FMT_WORD)))
     {
-        puts("Cancelado.\n");
+        puts(tr(M_CANCELLED));
         return;
     }
     int r = fs_format();
@@ -214,7 +208,34 @@ static void cmd_format(void)
     if (r)
         err(r);
     else
-        puts("NXFS formatado.\n");
+        puts(tr(M_FORMATTED));
+}
+
+static void cmd_lang(const char *arg)
+{
+    int l;
+    if (arg)
+    {
+        l = lang_parse(arg);
+        if (l < 0)
+        {
+            puts(tr(M_USE_LANG));
+            return;
+        }
+    }
+    else
+    {
+        l = nexus_lang_play();
+        if (l < 0)
+            l = lang_menu_text();
+    }
+    if (fs_ok)
+        lang_choose(l);
+    else
+        lang = (u8)l;
+    puts(tr(M_LANG_CHANGED));
+    puts(LANG_NAME_TXT[lang]);
+    putc('\n');
 }
 
 void shell_run(int ok)
@@ -222,7 +243,7 @@ void shell_run(int ok)
     char line[80], last[80], *av[4];
     fs_ok = ok;
     last[0] = 0;
-    cputs(C_GRAY, "Digite 'help' para ver os comandos.\n\n");
+    cputs(C_GRAY, tr(M_HINT));
     for (;;)
     {
         prompt();
@@ -255,23 +276,25 @@ void shell_run(int ok)
         }
 
         const char *c = av[0];
-        if (!strcmp(c, "help") || !strcmp(c, "ajuda"))
+        if (!strcmp(c, "help") || !strcmp(c, "ajuda") || !strcmp(c, "ayuda"))
             cmd_help();
-        else if (!strcmp(c, "clear") || !strcmp(c, "cls") || !strcmp(c, "limpar"))
+        else if (!strcmp(c, "clear") || !strcmp(c, "cls") || !strcmp(c, "limpar") || !strcmp(c, "limpiar"))
             vid_clear();
-        else if (!strcmp(c, "shutdown") || !strcmp(c, "poweroff") || !strcmp(c, "desligar"))
+        else if (!strcmp(c, "shutdown") || !strcmp(c, "poweroff") || !strcmp(c, "desligar") || !strcmp(c, "apagar"))
         {
-            cputs(C_YELLOW, "Desligando NEXUS.OS...\n");
+            cputs(C_YELLOW, tr(M_SHUTTING));
             nexus_outro_play();
             power_off();
         }
         else if (!strcmp(c, "reboot") || !strcmp(c, "reiniciar"))
         {
-            cputs(C_YELLOW, "Reiniciando...\n");
+            cputs(C_YELLOW, tr(M_REBOOTING));
             power_reboot();
         }
+        else if (!strcmp(c, "idioma") || !strcmp(c, "language") || !strcmp(c, "lang"))
+            cmd_lang(n > 1 ? av[1] : 0);
         else if (!fs_ok)
-            cputs(C_RED, "armazenamento indisponivel (disco sem suporte BIOS/LBA)\n");
+            cputs(C_RED, tr(M_NOSTORAGE));
         else if (!strcmp(c, "ls") || !strcmp(c, "dir"))
             cmd_ls(n > 1 ? av[1] : 0);
         else if (!strcmp(c, "tree"))
@@ -302,21 +325,21 @@ void shell_run(int ok)
         else if (!strcmp(c, "mkdir"))
         {
             if (n < 2)
-                puts("uso: mkdir <pasta>\n");
+                puts(tr(M_USE_MKDIR));
             else
                 cmd_create(av[1], FS_DIR);
         }
         else if (!strcmp(c, "touch"))
         {
             if (n < 2)
-                puts("uso: touch <arquivo>\n");
+                puts(tr(M_USE_TOUCH));
             else
                 cmd_create(av[1], FS_FILE);
         }
         else if (!strcmp(c, "rmdir"))
         {
             if (n < 2)
-                puts("uso: rmdir <pasta>\n");
+                puts(tr(M_USE_RMDIR));
             else
                 cmd_rm(av[1], 0, 1);
         }
@@ -327,12 +350,12 @@ void shell_run(int ok)
             else if (n >= 2)
                 cmd_rm(av[1], 0, 0);
             else
-                puts("uso: rm [-r] <item>\n");
+                puts(tr(M_USE_RM));
         }
-        else if (!strcmp(c, "rename") || !strcmp(c, "mv") || !strcmp(c, "renomear"))
+        else if (!strcmp(c, "rename") || !strcmp(c, "mv") || !strcmp(c, "renomear") || !strcmp(c, "renombrar"))
         {
             if (n < 3)
-                puts("uso: rename <de> <para>\n");
+                puts(tr(M_USE_RENAME));
             else
                 cmd_rename(av[1], av[2]);
         }
@@ -342,9 +365,9 @@ void shell_run(int ok)
             cmd_format();
         else
         {
-            cputs(C_RED, "comando desconhecido: ");
+            cputs(C_RED, tr(M_UNKNOWN));
             cputs(C_RED, c);
-            cputs(C_GRAY, "  (digite help)\n");
+            cputs(C_GRAY, tr(M_TYPE_HELP));
         }
     }
 }
