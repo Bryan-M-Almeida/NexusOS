@@ -107,7 +107,7 @@ static int disk_rw(int write, u32 lba, void *buf)
         dap.count = 1;
         dap.off = (u16)(u32)buf;
         dap.seg = cur_seg();
-        dap.lba = lba;
+        dap.lba = lba + boot_base;
         dap.lba_hi = 0;
         if (!bios13(write ? 0x4300 : 0x4200, &dap))
             return 0;

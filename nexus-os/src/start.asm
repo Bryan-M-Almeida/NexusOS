@@ -3,6 +3,7 @@ bits 16
 section .text.start
 global _start
 global enter_unreal
+global boot_base
 extern kmain
 extern __bss_start
 extern __bss_end
@@ -21,6 +22,12 @@ _start:
     sub ecx, edi
     xor al, al
     rep stosb
+    xor eax, eax                ; ISO hibrida gravada em pendrive: a imagem comeca no
+    cmp esi, 0x3142584E         ; LBA passado em EBX (assinatura 'NXB1' em ESI)
+    jne .nobase
+    mov eax, ebx
+.nobase:
+    mov [boot_base], eax
     mov ax, 0xB800
     mov gs, ax
     xor ax, ax
@@ -65,3 +72,6 @@ gdt_end:
 gdtr:
     dw gdt_end - gdt - 1
     dd 0
+
+section .bss
+boot_base: resd 1
