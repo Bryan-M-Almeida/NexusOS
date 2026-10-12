@@ -5,7 +5,7 @@ CFLAGS  = -m16 -march=i386 -Os -Wall -Wextra -ffreestanding -fno-builtin -fno-pi
 OBJS    = build/start.o build/main.o build/shell.o build/fs.o build/disk.o build/video.o \
           build/kbd.o build/power.o build/string.o build/intro.o build/lang.o
 
-all: nexus.img nexus.iso
+all: nexus.iso
 
 build:
 	mkdir -p build
@@ -31,8 +31,8 @@ KSECT = $$(( ($$(stat -c%s build/kernel.bin) + 511) / 512 ))
 build/boot.bin: src/boot.asm build/kernel.bin
 	nasm -f bin -DKSECT=$(KSECT) $< -o $@
 
-nexus.img: build/boot.bin build/kernel.bin build/assets.bin mkimage.py
-	python3 mkimage.py build/boot.bin build/kernel.bin build/assets.bin $@
+build/nexus.img: build/boot.bin build/kernel.bin build/assets.bin tools/mkimage.py
+	python3 tools/mkimage.py build/boot.bin build/kernel.bin build/assets.bin $@
 
 build/boot_cd.bin: src/boot_cd.asm build/kernel.bin
 	nasm -f bin -DKSECT=$(KSECT) $< -o $@
@@ -40,19 +40,19 @@ build/boot_cd.bin: src/boot_cd.asm build/kernel.bin
 build/boot_hyb.bin: src/boot_hyb.asm build/kernel.bin
 	nasm -f bin -DKSECT=$(KSECT) $< -o $@
 
-nexus.iso: build/boot_cd.bin build/boot_hyb.bin nexus.img mkiso.py
-	python3 mkiso.py build/boot_cd.bin build/boot_hyb.bin nexus.img $@
+# the only output: hybrid ISO for VirtualBox (CD) and USB drives (DD mode)
+nexus.iso: build/boot_cd.bin build/boot_hyb.bin build/nexus.img tools/mkiso.py
+	python3 tools/mkiso.py build/boot_cd.bin build/boot_hyb.bin build/nexus.img $@
 
+# QEMU: boot the ISO as a CD (read-only)
 run-iso: nexus.iso
 	qemu-system-i386 -m 64 -cdrom nexus.iso -boot d
 
-# boot the ISO as a raw disk, like a USB drive written in DD mode
-run-usb: nexus.iso
-	qemu-system-i386 -m 64 -drive format=raw,file=nexus.iso
-
-run: nexus.img
-	qemu-system-i386 -m 64 -drive format=raw,file=nexus.img
+# QEMU: boot a copy of the ISO as a USB drive (changes persist in build/usb.img)
+run: nexus.iso
+	[ -f build/usb.img ] && [ build/usb.img -nt nexus.iso ] || cp nexus.iso build/usb.img
+	qemu-system-i386 -m 64 -drive format=raw,file=build/usb.img
 
 clean:
-	rm -rf build nexus.img nexus.iso
-.PHONY: all run run-iso run-usb clean
+	rm -rf build nexus.iso
+.PHONY: all run run-iso clean

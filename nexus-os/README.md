@@ -1,4 +1,4 @@
-# NEXUS.OS v0.1
+# NEXUS.OS
 
 Sistema operacional real, bootável (BIOS legacy), escrito em Assembly (NASM) + C (GCC `-m16`).
 Roda em máquina virtual e em pendrive.
@@ -31,48 +31,57 @@ O modo texto (shell e boot sem VBE) usa a **paleta NEXUS**: os 16 registradores 
 - `src/lang.c` – todas as mensagens do sistema nos três idiomas (`tr(id)`)
 - Glifos e tabelas da intro ficam em `build/assets.bin`, gravado no setor 256 da imagem e carregado para a memória alta no boot (assim não ocupam o segmento de 64 KB do kernel)
 
-## Como rodar
-**VirtualBox (mais fácil): use o `nexus.iso`.** Nova VM -> Type *Other*, Version *Other/Unknown (64-bit)* -> no campo **ISO Image** escolha `nexus.iso` -> marque *Skip Unattended Installation* -> desmarque *Enable EFI* -> Start.
-No modo ISO o CD é somente leitura: tudo funciona (ls, mkdir, rename, rm, shutdown), mas as alterações valem só até desligar. Para **salvar** as pastas, use o disco (`nexus.vdi` / `nexus.img`).
+## Como usar
+Tudo usa **um único arquivo: `nexus.iso`** (gerado pelo `make`, ou baixado das *Releases* do GitHub). A ISO é **híbrida**: dá boot como CD e também gravada direto num pendrive.
 
-**QEMU:** `./run.sh` (disco, salva), `make run-iso` (CD) ou `make run-usb` (a ISO como se estivesse gravada num pendrive)
+**VirtualBox:** nova VM -> Type *Other*, Version *Other/Unknown (64-bit)* -> em **ISO Image** escolha a `nexus.iso` -> marque *Skip Unattended Installation* -> desmarque *Enable EFI* -> Start. Como CD a mídia é somente leitura: tudo funciona, mas as alterações valem até desligar.
 
-**VirtualBox:** `VBoxManage convertfromraw nexus.img nexus.vdi --format VDI`, crie uma VM (Tipo *Other/Unknown*, **sem EFI**, sem disco novo) e anexe o `nexus.vdi` como disco.
+**Pendrive:**
+- Windows: Rufus com a `nexus.iso`; se perguntar, escolha **"Gravar em modo Imagem DD"** (balenaEtcher também serve).
+- Linux: `sudo tools/flash.sh /dev/sdX` (confira o nome com `lsblk`).
+- No pendrive o sistema **salva** as pastas e o idioma.
+- No PC, dê boot em modo **Legacy/CSM** (desative o Secure Boot). Não funciona em UEFI puro.
+- ⚠ Gravar apaga o pendrive inteiro.
 
-**VMware:** `qemu-img convert -O vmdk nexus.img nexus.vmdk`, e use como disco existente (firmware BIOS).
-
-**Pendrive:** a `nexus.iso` é **híbrida**: o mesmo arquivo dá boot como CD (VirtualBox) e gravado direto num pendrive.
-- Windows: Rufus com a `nexus.iso` (ou o `nexus.img`). Se o Rufus perguntar, escolha **"Gravar em modo Imagem DD"**. balenaEtcher / Win32DiskImager também servem.
-- Linux: `sudo ./flash.sh /dev/sdX` (grava o `nexus.img`; confira o nome com `lsblk`).
-- Gravado em pendrive, o sistema **salva** as pastas (no CD/ISO do VirtualBox as alterações valem só até desligar).
-- No PC, boote pelo pendrive em modo **Legacy/CSM** (desative Secure Boot). Não funciona em UEFI puro.
-- ⚠ Gravar apaga o pendrive inteiro (a imagem ocupa 1 MiB, o resto fica sem uso).
+**QEMU:** `make run` (como pendrive, salva em `build/usb.img`) ou `make run-iso` (como CD).
 
 ## Compilar
-Precisa de `gcc`, `ld`, `nasm`, `make`, `xorriso`, `python3` com Pillow: `make`  ->  gera `nexus.img` e `nexus.iso`.
+Precisa de `gcc`, `ld`, `nasm`, `make`, `xorriso`, `python3` com Pillow. `make` gera a `nexus.iso`; os arquivos intermediários ficam em `build/` (`make clean` apaga tudo).
 
 No Windows, use o WSL (Ubuntu):
 ```
 sudo apt install build-essential gcc-multilib nasm xorriso python3-pil qemu-system-x86
 make
 ```
-As imagens prontas ficam nas *Releases* do GitHub (não são versionadas no repositório).
+As ISOs prontas ficam nas *Releases* do GitHub (não são versionadas no repositório).
+
+## Estrutura
+```
+src/          kernel (C + Assembly)
+tools/        mkassets.py (fontes/tabelas da intro), mkimage.py, mkiso.py, flash.sh, fonts/
+Makefile      build
+nexus.iso     resultado do build (único arquivo para VirtualBox e pendrive)
+build/        intermediários (gerado)
+```
 
 ## Arquitetura
+Imagem do disco (`build/nexus.img`, embutida na ISO):
 ```
 LBA 0        boot.asm   setor de boot (+ tabela de partição dummy p/ BIOS exigentes)
 LBA 1..127   kernel     carregado em 1000:0000 (modo real, segmento de 64 KB)
-LBA 128..    NXFS       superbloco + tabela de 224 entradas (tipo, pai, nome[30])
+LBA 128..    NXFS       superbloco (com o idioma salvo) + tabela de 224 entradas
+LBA 256..    assets     glifos e tabelas da intro (carregados para a memória alta)
 ```
-- `src/start.asm` – entrada, zera .bss, modo *unreal* (para ler tabelas ACPI acima de 1 MB)
-- `src/disk.c` – INT 13h estendido (LBA): é o que permite acessar o pendrive de verdade
+- `src/start.asm` – entrada, zera .bss, modo *unreal* (acesso à memória acima de 1 MB)
+- `src/disk.c` – INT 13h estendido (LBA): HD, pendrive e CD
 - `src/fs.c` – NXFS: montar, formatar, criar, renomear, remover (recursivo), caminhos
 - `src/power.c` – desligar (ACPI/VM/APM) e reiniciar
-- `src/video.c`, `kbd.c`, `shell.c`, `main.c` – VGA texto, teclado, shell e splash
-- `src/boot_cd.asm` – boot por CD (El Torito); `src/boot_hyb.asm` – MBR da ISO híbrida (pendrive), carrega o kernel do `NEXUS.IMG` dentro da ISO
+- `src/video.c`, `kbd.c`, `shell.c`, `main.c` – modo texto (paleta NEXUS), teclado, shell e boot
+- `src/intro.c` – animações (boot, seletor de idioma, desligamento); `src/lang.c` – mensagens
+- `src/boot_cd.asm` – boot por CD (El Torito); `src/boot_hyb.asm` – MBR da ISO híbrida (pendrive)
 
 ## Limitações conhecidas
-- BIOS legacy apenas (sem UEFI), 16-bit, kernel < ~60 KB.
+- BIOS legacy apenas (sem UEFI), 16-bit, kernel limitado a um segmento de 64 KB.
 - Pendrive em modo "USB-FDD" (raro) não tem LBA estendido: o boot avisa com erro.
 - Máx. 224 entradas, nomes de até 29 caracteres sem espaços, sem acentos.
 - Testado no QEMU (boot, criar/renomear/excluir, persistência após reiniciar, desligamento via ACPI). **Não testado em hardware físico** — ao testar no PC, comece por um pendrive sem dados.
