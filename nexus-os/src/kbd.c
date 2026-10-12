@@ -8,6 +8,14 @@ u16 getkey(void)
     return ax;
 }
 
+int key_ready(void)
+{
+    u16 ax = 0x0100;
+    u8 zf;
+    asm volatile("int $0x16" : "+a"(ax), "=@ccz"(zf)::"memory");
+    return !zf;
+}
+
 /* Read a line; Up arrow recalls the previous command ('last'). */
 void readline(char *buf, int max, char *last)
 {

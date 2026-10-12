@@ -135,6 +135,7 @@ parts.append(render_font(MICHROMA, 16.0, OPTION_CHARS, "fnt_option"))  # languag
 for H in HEIGHTS:
     D = H * 64 // 100  # ring diameter = 64% of height (same as intro.c)
     parts.append(render_font(MICHROMA, D * 0.078, "NEXUS.", f"fnt_title_{H}"))
+    parts.append(render_font(MICHROMA, D * 0.13, "123", f"fnt_digit_{H}"))  # shutdown countdown
     parts.append(render_font(MICHROMA, D * 0.03, "TEAM", f"fnt_team_{H}"))
 
 total = ASSET_HDR + len(blob)

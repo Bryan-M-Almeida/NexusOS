@@ -211,6 +211,34 @@ static void cmd_format(void)
         puts(tr(M_FORMATTED));
 }
 
+static u32 bios_ticks(void)
+{
+    u16 cx, dx, ax = 0;
+    asm volatile("int $0x1A" : "+a"(ax), "=c"(cx), "=d"(dx)::"memory", "cc", "bx", "si", "di");
+    return ((u32)cx << 16) | dx;
+}
+
+/* Text-mode shutdown countdown: 1 = power off, 0 = cancelled with Esc */
+static int text_countdown(void)
+{
+    cputs(C_RED, tr(M_OFF_IN));
+    for (int i = 3; i > 0; i--)
+    {
+        putc(' ');
+        putc((char)('0' + i));
+        puts("...");
+        u32 s = bios_ticks();
+        while (bios_ticks() - s < 18)
+            if (key_ready())
+            {
+                putc('\n');
+                return (getkey() & 0xFF) != 27;
+            }
+    }
+    putc('\n');
+    return 1;
+}
+
 static void cmd_lang(const char *arg)
 {
     int l;
@@ -283,8 +311,12 @@ void shell_run(int ok)
         else if (!strcmp(c, "shutdown") || !strcmp(c, "poweroff") || !strcmp(c, "desligar") || !strcmp(c, "apagar"))
         {
             cputs(C_YELLOW, tr(M_SHUTTING));
-            nexus_outro_play();
-            power_off();
+            int r = nexus_outro_play();
+            if (r < 0)
+                r = text_countdown();
+            if (r)
+                power_off();
+            cputs(C_GRAY, tr(M_SHUT_CANCEL));
         }
         else if (!strcmp(c, "reboot") || !strcmp(c, "reiniciar"))
         {

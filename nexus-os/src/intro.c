@@ -62,8 +62,10 @@ static s32 t_online = 1 << 28; /* set when boot finishes */
 static int outro;
 static u32 title_fade = 256; /* title opacity multiplier, 0..256 */
 #define OUT_RING_MS 1200
-#define OUT_FADE 2000
-#define OUT_END 2600
+#define OUT_CD 600                 /* countdown start (after the title fades) */
+#define OUT_EXIT (OUT_CD + 3000)   /* rings start leaving after "3 2 1" */
+#define OUT_FADE (OUT_EXIT + 2000)
+#define OUT_END (OUT_EXIT + 2600)
 static const u16 OUT_DELAY[9] = {100, 1000, 850, 700, 550, 400, 250, 100, 0};
 
 /* Language selector (inside the rings, in place of the title) */
@@ -432,7 +434,7 @@ struct gstate
 
 static void group_state(s32 t, int g, struct gstate *s)
 {
-    s32 u = outro ? 4096 - prog(t, OUT_DELAY[g], OUT_RING_MS) : prog(t, GRP[g].delay, BOOT_MS);
+    s32 u = outro ? 4096 - prog(t, OUT_EXIT + OUT_DELAY[g], OUT_RING_MS) : prog(t, GRP[g].delay, BOOT_MS);
     s32 e = ease(ease_out_tab, u);
     s->sc = 2048 + (u32)e / 2;                              /* 0.5 -> 1 */
     u32 rot = (u32)(65536 - ((30948 * (4096 - e)) >> 12)); /* -170 deg -> 0 */
@@ -907,8 +909,8 @@ static void draw_map(const struct gmap *m, s32 ox, s32 oy, s32 pvx, s32 pvy, s32
 }
 
 /* ---- Text layout ---- */
-static const struct font *ft_title, *ft_team;
-static struct gmap m_letter[5], m_dot, m_team[4];
+static const struct font *ft_title, *ft_team, *ft_digit;
+static struct gmap m_letter[5], m_dot, m_team[4], m_digit[3];
 static s32 lx[5], lw[5], dx_[4], dw_; /* letter and dot boxes (1/16 px) */
 static s32 word_top, word_base;      /* wordmark top and baseline (1/16 px) */
 static s32 team_x, team_base;
@@ -1309,6 +1311,55 @@ static void draw_selector(s32 t)
 #undef OPA
 }
 
+/* ---- Shutdown countdown ---- */
+/* "NEXUS shutting down in" + 3, 2, 1 in the center, with a red progress arc */
+static void draw_countdown(s32 t)
+{
+    if (t < OUT_CD || t >= OUT_EXIT + 400)
+        return;
+    u32 vis = 256 - ((u32)(ease(ease_tab, prog(t, OUT_EXIT, 400)) * 256) >> 12);
+    u32 in = (u32)(ease(ease_tab, prog(t, OUT_CD, 400)) * 256) >> 12;
+
+    /* progress arc between rings 7 and 8, starting at the top */
+    static const struct feat arc = {8, F_ARC, 1, 255, RU(182), 0, RU(2), 1, 0, TURN(0.25), COL_RED};
+    struct feat a = arc;
+    s32 p = prog(t, OUT_CD, OUT_EXIT - OUT_CD);
+    a.fill = (u16)imin(p * 16, 65535);
+    struct gstate g = {4096, 0, (in * vis) >> 8};
+    if (a.fill)
+        draw_feat(&a, &g);
+
+    const struct font *fs = &fnt_mono_small;
+    s32 ls = fs->size16 * 12 / 100, off = (s32)D * 16 * 14 / 100;
+    const char *lbl = tr(M_OFF_IN), *hint = tr(M_OFF_HINT);
+    draw_text(fs, lbl, cx * 16 - text_width(fs, lbl, ls) / 2, (cy * 16 - off) >> 4, ls, COL_MUTED, (in * vis) >> 8);
+    draw_text(fs, hint, cx * 16 - text_width(fs, hint, ls) / 2, (cy * 16 + off + 8 * 16) >> 4, ls, COL_MUTED,
+              (in * vis * 150) >> 16);
+
+    /* digit: enters scaled up with a red glow, leaves shrinking */
+    s32 idx = imin((t - OUT_CD) / 1000, 2), u = (t - OUT_CD) - idx * 1000;
+    const struct glyph *gl = glyph_of(ft_digit, "321"[idx]);
+    s32 q = ease(ease_out_tab, prog(u, 0, 350));
+    s32 o = 4096 - ease(ease_tab, prog(u, 780, 220));
+    if (idx == 2)
+        o = 4096 - ease(ease_tab, prog(t, OUT_EXIT, 300)); /* "1" stays until the rings leave */
+    struct fx e;
+    e.opa = (((u32)(q * o >> 12) * 256) >> 12) * vis >> 8;
+    e.mixb = e.gmix = 0;
+    e.galpha = (u32)(230 - ((140 * q) >> 12));
+    e.gcol = COL_RED;
+    e.col = COL_SILVER;
+    e.grad = 1;
+    e.gtop = gl->by * 16;
+    e.gh = gl->h * 16;
+    s32 k = 6144 - ((2048 * q) >> 12) - ((614 * (4096 - o)) >> 12); /* 1.5 -> 1 -> 0.85 */
+    s32 ox = cx * 16 - gl->adv / 2, base = cy * 16 - (gl->by * 16 + gl->h * 8);
+    u32 tf = title_fade; /* the digit is not part of the fading title */
+    title_fade = 256;
+    draw_map(&m_digit[idx], ox, base, gl->adv / 2, gl->by * 16 + gl->h * 8, k, &e);
+    title_fade = tf;
+}
+
 /* ---- Presentation ---- */
 static void rect_copy(hu32 *dst, const hu32 *src, struct rect r)
 {
@@ -1369,10 +1420,10 @@ static void render(s32 t, int full, int baked, u32 fade)
     {
         if (outro)
         {
-            u32 op = 256 - ((u32)(ease(ease_tab, prog(t, 500, 700)) * 256) >> 12);
+            u32 op = 256 - ((u32)(ease(ease_tab, prog(t, OUT_EXIT + 500, 700)) * 256) >> 12);
             draw_corners(op, bb);
             draw_sideticks(op, bb);
-            draw_connectors(ease(ease_out_tab, 4096 - prog(t, 200, 1000)), bb);
+            draw_connectors(ease(ease_out_tab, 4096 - prog(t, OUT_EXIT + 200, 1000)), bb);
         }
         else
         {
@@ -1390,6 +1441,8 @@ static void render(s32 t, int full, int baked, u32 fade)
 
     draw_title(outro ? 1 << 20 : t); /* shutdown starts from the final title state */
     draw_selector(t);
+    if (outro)
+        draw_countdown(t);
     draw_status(t);
     draw_log(t);
 
@@ -1418,6 +1471,11 @@ static void build_tables(void)
     m_dot.g = blur_map(&m_dot, 6);
     for (int i = 0; i < 4; i++)
         make_map(&m_team[i], ft_team, "TEAM"[i], 2);
+    for (int i = 0; i < 3; i++)
+    {
+        make_map(&m_digit[i], ft_digit, "321"[i], 24);
+        m_digit[i].g = blur_map(&m_digit[i], 7);
+    }
 }
 
 static int setup(void)
@@ -1432,16 +1490,19 @@ static int setup(void)
     {
         ft_title = &fnt_title_768;
         ft_team = &fnt_team_768;
+        ft_digit = &fnt_digit_768;
     }
     else if (H == 600)
     {
         ft_title = &fnt_title_600;
         ft_team = &fnt_team_600;
+        ft_digit = &fnt_digit_600;
     }
     else
     {
         ft_title = &fnt_title_480;
         ft_team = &fnt_team_480;
+        ft_digit = &fnt_digit_480;
     }
     D = H * 64 / 100;
     S16 = D * 65536 / 600;
@@ -1568,16 +1629,18 @@ int nexus_intro_play(boot_step_fn next)
     return 1;
 }
 
-/* Shutdown animation. Returns in text mode so power_off() can report failures. */
-void nexus_outro_play(void)
+/* Shutdown animation with a 3-2-1 countdown. Returns in text mode:
+ * 1 = power off, 0 = cancelled with Esc, -1 = no graphics. */
+int nexus_outro_play(void)
 {
+    int go = 1;
     outro = 1;
     n_log = 0;
     t_online = 0;
     if (!setup())
     {
         outro = 0;
-        return;
+        return -1;
     }
     outb(0x43, 0x34);
     outb(0x40, 0);
@@ -1594,8 +1657,8 @@ void nexus_outro_play(void)
         if (t >= OUT_END)
             break;
         if (key_hit())
-        {
-            getkey(); /* any key skips */
+        { /* Esc cancels, any other key powers off now */
+            go = (getkey() & 0xFF) != 27;
             break;
         }
         enter_unreal();
@@ -1613,6 +1676,7 @@ void nexus_outro_play(void)
     vid_init();
     outro = 0;
     title_fade = 256;
+    return go;
 }
 
 /* Language selector scene for the shell command; returns the choice or -1 without graphics */

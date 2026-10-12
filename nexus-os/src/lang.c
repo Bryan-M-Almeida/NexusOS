@@ -111,6 +111,10 @@ static const char *const STR[M_COUNT][LANG_COUNT] = {
                       "\nCould not power off by software.\nYou can turn off the computer manually.\n",
                       "\nNo se pudo apagar por software.\nPuede apagar el equipo manualmente.\n"},
 
+    [M_OFF_IN] = {"NEXUS desligando em", "NEXUS shutting down in", "NEXUS apagandose en"},
+    [M_OFF_HINT] = {"ESC cancela", "ESC cancels", "ESC cancela"},
+    [M_SHUT_CANCEL] = {"Desligamento cancelado.\n", "Shutdown cancelled.\n", "Apagado cancelado.\n"},
+
     [M_FS_NOTFOUND] = {"nao encontrado", "not found", "no encontrado"},
     [M_FS_EXISTS] = {"ja existe um item com esse nome", "an item with this name already exists",
                      "ya existe un elemento con ese nombre"},

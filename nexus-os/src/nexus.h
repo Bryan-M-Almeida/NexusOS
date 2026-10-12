@@ -71,6 +71,7 @@ void puthex(u32 n, int digits);
 
 /* ---- kbd.c ---- */
 u16 getkey(void); /* AH=scancode, AL=ascii */
+int key_ready(void); /* 1 if a key is waiting */
 void readline(char *buf, int max, char *last);
 
 /* ---- disk.c (INT 13h extensions) ---- */
@@ -144,7 +145,7 @@ enum
     M_HELP_TITLE, M_HELP, M_FMT_CONFIRM, M_FMT_WORD, M_CANCELLED, M_FORMATTED,
     M_SHUTTING, M_REBOOTING, M_NOSTORAGE, M_USE_MKDIR, M_USE_TOUCH, M_USE_RMDIR,
     M_USE_RM, M_USE_RENAME, M_USE_LANG, M_UNKNOWN, M_TYPE_HELP, M_LANG_CHANGED,
-    M_POWER_FAIL,
+    M_POWER_FAIL, M_OFF_IN, M_OFF_HINT, M_SHUT_CANCEL,
     M_FS_NOTFOUND, M_FS_EXISTS, M_FS_FULL, M_FS_NOTEMPTY, M_FS_INVALID, M_FS_IO,
     M_FS_ROOT, M_FS_INUSE, M_FS_NOTDIR, M_FS_UNKNOWN,
     M_COUNT
@@ -168,8 +169,8 @@ typedef int (*boot_step_fn)(int *msg); /* runs the next boot step, msg = message
 /* Plays the intro and runs the boot steps during it.
  * Returns 0 without doing anything if graphics are unavailable. */
 int nexus_intro_play(boot_step_fn next);
-/* Shutdown animation, played before power_off(); no-op without graphics. */
-void nexus_outro_play(void);
+/* Shutdown countdown animation: 1 = power off, 0 = cancelled (Esc), -1 = no graphics */
+int nexus_outro_play(void);
 /* Animated language selector; returns the language or -1 without graphics. */
 int nexus_lang_play(void);
 
