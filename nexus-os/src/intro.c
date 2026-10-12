@@ -48,10 +48,13 @@ struct font
 #define A(x) ((u8)((x) * 256 > 255 ? 255 : (x) * 256)) /* alfa 0..1 -> 0..255 */
 
 /* ------------------------------------------------------------------ linha do tempo (ms) */
-#define T_ONLINE 1700  /* nome entra, status muda */
-#define T_ACRONYM 3300 /* linha de baixo */
-#define T_FADE 5300    /* comeca o fade para preto */
-#define T_END 6000
+/* O nome entra quando o boot termina (no minimo em 1,7 s); o resto e relativo a isso. */
+#define T_ONLINE_MIN 1700
+static s32 t_online = 1 << 28; /* nome entra, status muda (definido quando o boot termina) */
+#define T_ACRONYM (t_online + 1600) /* linha de baixo */
+#define T_FADE (t_online + 3600)    /* comeca o fade para preto */
+#define T_END (t_online + 4300)
+#define T_ONLINE t_online
 #define BOOT_MS 1800 /* entrada de cada aro */
 
 /* ------------------------------------------------------------------ estado */
@@ -685,6 +688,8 @@ static void draw_connectors(s32 p, hu32 *buf)
 /* ------------------------------------------------------------------ texto */
 static const struct glyph *glyph_of(const struct font *f, char ch)
 {
+    if (ch >= 'a' && ch <= 'z')
+        ch = (char)(ch - 'a' + 'A');
     for (int i = 0; f->chars[i]; i++)
         if (f->chars[i] == ch)
             return &f->g[i];
@@ -1035,6 +1040,74 @@ static void draw_title(s32 t)
     }
 }
 
+/* ------------------------------------------------------------------ log de boot */
+#define LOG_MAX 10
+#define LOG_LH 14 /* altura da linha (px) */
+static struct
+{
+    const char *msg;
+    s32 st, t;
+} logl[LOG_MAX];
+static s32 n_log;
+static char vline_msg[40]; /* "Video VBE 1024x768 32 bpp" */
+
+static void log_add(const char *msg, s32 st, s32 t)
+{
+    if (n_log == LOG_MAX)
+    {
+        for (int i = 1; i < LOG_MAX; i++)
+            logl[i - 1] = logl[i];
+        n_log--;
+    }
+    logl[n_log].msg = msg;
+    logl[n_log].st = st;
+    logl[n_log].t = t;
+    n_log++;
+}
+
+static s32 log_top(void) { return status_y + 22; }
+
+/* linhas "[ OK ] mensagem" abaixo do status; mostra as ultimas que couberem */
+static void draw_log(s32 t)
+{
+    const struct font *f = &fnt_mono_small;
+    s32 ls = f->size16 * 4 / 100;
+    s32 fit = ((s32)H - 8 - log_top()) / LOG_LH;
+    s32 first = n_log > fit ? n_log - fit : 0;
+    s32 x = (cx - imin((s32)W / 2 - 30, 210)) * 16;
+    s32 tagw = text_width(f, "[FALHA] ", ls);
+    for (s32 i = first; i < n_log; i++)
+    {
+        u32 op = (u32)(ease(ease_tab, prog(t, logl[i].t, 250)) * 256) >> 12;
+        s32 base = log_top() + (i - first) * LOG_LH + 10;
+        const char *tag = logl[i].st == BOOT_OK ? "[ OK ]" : logl[i].st == BOOT_WARN ? "[ !! ]" : "[FALHA]";
+        draw_text(f, tag, x, base, ls, logl[i].st == BOOT_OK ? COL_BRIGHT : COL_RED, op);
+        draw_text(f, logl[i].msg, x + tagw, base, ls, COL_MUTED, op);
+    }
+}
+
+static void utoa_cat(char *d, u32 n)
+{
+    char b[11];
+    int i = 0;
+    while (*d)
+        d++;
+    do
+        b[i++] = (char)('0' + n % 10);
+    while (n /= 10);
+    while (i)
+        *d++ = b[--i];
+    *d = 0;
+}
+
+static void str_cat(char *d, const char *s)
+{
+    while (*d)
+        d++;
+    while ((*d++ = *s++))
+        ;
+}
+
 static void draw_status(s32 t)
 {
     const char *s = t < T_ONLINE ? "INICIALIZANDO SISTEMAS~" : "SISTEMA ONLINE";
@@ -1125,6 +1198,7 @@ static void render(s32 t, int full, int baked, u32 fade)
             s32 hh = (s32)D / 10 + 3; /* faixa dos conectores */
             rs[n++] = (struct rect){0, cy - hh, (s32)W, cy + hh};
         }
+        rs[n++] = (struct rect){0, imin(log_top() - 2, (s32)H), (s32)W, (s32)H}; /* log de boot */
     }
     for (int i = 0; i < n; i++)
         rect_copy(bb, bgb, rs[i]);
@@ -1144,6 +1218,7 @@ static void render(s32 t, int full, int baked, u32 fade)
 
     draw_title(t);
     draw_status(t);
+    draw_log(t);
 
     if (fade < 256)
         present(scr, fade);
@@ -1215,7 +1290,7 @@ static int setup(void)
     if (heap + 0x100000 > 0x100000 + ext_mem_kb() * 1024) /* + ~1 MB para glifos e blur */
         return 0;
 
-    build_tables(); /* ainda no modo texto: a tela de boot continua visivel enquanto calcula */
+    build_tables(); /* ainda no modo texto, antes de trocar o modo de video */
 
     /* tudo certo: troca para o modo grafico */
     if (!vbe(0x4F02, (u16)(vbe_mode | 0x4000), 0, 0))
@@ -1223,18 +1298,26 @@ static int setup(void)
     enter_unreal();
     return 1;
 }
-void nexus_intro_play(void)
+int nexus_intro_play(boot_step_fn next)
 {
     if (!setup())
-        return;
+        return 0;
     outb(0x43, 0x34); /* PIT canal 0: modo 2, divisor 65536 (mesma taxa de IRQ) */
     outb(0x40, 0);
     outb(0x40, 0);
     while (key_hit())
         getkey();
 
+    vline_msg[0] = 0;
+    str_cat(vline_msg, "Video VBE ");
+    utoa_cat(vline_msg, W);
+    str_cat(vline_msg, "x");
+    utoa_cat(vline_msg, H);
+    str_cat(vline_msg, " 32 bpp");
+
     u32 t0 = pit_now();
-    int baked = 0, first = 1;
+    int baked = 0, first = 1, done = 0, video_logged = 0;
+    s32 next_step = 150;
     for (;;)
     {
         u32 fs = pit_now();
@@ -1243,8 +1326,27 @@ void nexus_intro_play(void)
             break;
         if (key_hit())
         {
-            getkey(); /* qualquer tecla pula */
+            getkey(); /* qualquer tecla pula (o boot termina sem animacao) */
             break;
+        }
+        /* inicializacao de verdade, uma etapa por vez entre os quadros */
+        if (!done && t >= next_step)
+        {
+            const char *msg;
+            s32 st;
+            if (!video_logged)
+            {
+                log_add(vline_msg, BOOT_OK, t);
+                video_logged = 1;
+            }
+            else if ((st = next(&msg)) == BOOT_END)
+            {
+                done = 1;
+                t_online = imax(T_ONLINE_MIN, t + 150);
+            }
+            else
+                log_add(msg, st, t);
+            next_step = (s32)((pit_now() - t0) / 1193) + 220;
         }
         enter_unreal(); /* garante o FS de 4 GB mesmo se alguma rotina da BIOS mexer nele */
         int full = first;
@@ -1261,9 +1363,16 @@ void nexus_intro_play(void)
         while (pit_now() - fs < 19886) /* ~60 fps */
             asm volatile("pause");
     }
+    if (!done)
+    { /* pulou antes do fim: termina as etapas que faltam */
+        const char *msg;
+        while (next(&msg) != BOOT_END)
+            ;
+    }
 
     outb(0x43, 0x36); /* PIT de volta ao modo 3 padrao da BIOS */
     outb(0x40, 0);
     outb(0x40, 0);
     vid_init(); /* volta ao modo texto 80x25 */
+    return 1;
 }

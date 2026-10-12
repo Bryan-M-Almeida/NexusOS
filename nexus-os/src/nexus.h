@@ -126,8 +126,15 @@ void power_reboot(void);
 /* ---- shell.c ---- */
 void shell_run(int fs_ok);
 
-/* ---- intro.c (animacao de abertura NEXUS, pula sozinha sem VBE) ---- */
-void nexus_intro_play(void);
+/* ---- intro.c (animacao de abertura NEXUS) ---- */
+#define BOOT_END (-1)
+#define BOOT_OK 0
+#define BOOT_WARN 1
+#define BOOT_FAIL 2
+typedef int (*boot_step_fn)(const char **msg); /* executa a proxima etapa do boot */
+/* Toca a intro executando as etapas de boot no meio dela (log no HUD).
+ * Retorna 0 sem fazer nada se nao houver VBE 32 bpp / memoria: use o boot em texto. */
+int nexus_intro_play(boot_step_fn next);
 
 /* ---- start.asm ---- */
 extern void enter_unreal(void);

@@ -20,9 +20,10 @@ SS = 4  # supersampling
 HEIGHTS = (768, 600, 480)
 
 # Textos mono usados na intro ('~' = reticencias)
-MONO_TEXT = ("INICIALIZANDO SISTEMAS~", "SISTEMA ONLINE", "ENCERRANDO SISTEMAS~",
-             "NETWORKED EXPERIENTIAL INTELLIGENCE & USER SYSTEM")
-MONO_CHARS = "".join(sorted(set("".join(MONO_TEXT)) - {" "}))
+STATUS_TEXT = ("INICIALIZANDO SISTEMAS~", "SISTEMA ONLINE", "ENCERRANDO SISTEMAS~")
+STATUS_CHARS = "".join(sorted(set("".join(STATUS_TEXT)) - {" "}))
+# fonte pequena: sigla + log de boot (mensagens do kernel em maiusculas)
+SMALL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&.,:;-+()/[]!~'%"
 
 
 def render_font(path, size, chars, name):
@@ -113,8 +114,8 @@ parts.append(table("ease_tab", "u16", bezier_table(0.25, 0.1, 0.25, 1)))        
 # gaussiana exp(-x^2/2), x = i/64, 0..255
 parts.append(table("gauss_tab", "u8", [round(255 * math.exp(-((i / 64) ** 2) / 2)) for i in range(256)]))
 
-parts.append(render_font(MONO, 11.2, MONO_CHARS, "fnt_mono_status"))   # 0.7rem
-parts.append(render_font(MONO, 10.0, MONO_CHARS, "fnt_mono_small"))    # max(10px, 1.9% do anel)
+parts.append(render_font(MONO, 11.2, STATUS_CHARS, "fnt_mono_status"))  # 0.7rem
+parts.append(render_font(MONO, 10.0, SMALL_CHARS, "fnt_mono_small"))    # max(10px, 1.9% do anel)
 for H in HEIGHTS:
     D = H * 64 // 100  # diametro do anel = 64% da altura (mesma conta do C)
     parts.append(render_font(MICHROMA, D * 0.078, "NEXUS.", f"fnt_title_{H}"))

@@ -6,7 +6,7 @@ Roda em máquina virtual e em pendrive.
 ## Requisitos atendidos
 | Requisito | Como |
 |---|---|
-| **Ligar** | Boot: bootloader -> kernel -> tela de abertura com barra de carregamento -> animação NEXUS (gráfica) -> shell. Em PC real, "ligar" = botão de energia + boot pelo pendrive |
+| **Ligar** | Boot: bootloader -> kernel -> animação NEXUS, que inicializa o sistema e mostra o log (`[ OK ]`) -> shell. Sem vídeo VBE: tela de texto com barra de carregamento. Em PC real, "ligar" = botão de energia + boot pelo pendrive |
 | **Desligar** | Comando `shutdown`: ACPI real (lê FADT/DSDT `_S5_`), com fallback para QEMU/Bochs/VirtualBox e APM |
 | **Listar arquivos do armazenamento** | `ls [caminho]`, `tree` |
 | **Criar pasta** | `mkdir <pasta>` (aceita caminhos: `mkdir projetos/app`) |
@@ -18,7 +18,7 @@ Extras mínimos para usar o sistema: `cd`, `pwd`, `touch` (cria arquivo vazio, p
 > Arquivos são só entradas de nome (sem conteúdo): o escopo pedido foi gerenciar pastas, não editar arquivos.
 
 ## Animação de abertura NEXUS
-Depois dos `[ OK ]` do boot, o sistema troca para vídeo gráfico (VBE, 32 bpp, 1024x768 -> 800x600 -> 640x480) e toca a intro com a identidade visual NEXUS (aros girando, título N.E.X.U.S, ~6 s). **Qualquer tecla pula.** Se a máquina não tiver VBE com framebuffer linear de 32 bpp, ou tiver menos de ~16 MB de RAM, a intro é pulada e o boot segue em modo texto.
+Logo após carregar o kernel, o sistema troca para vídeo gráfico (VBE, 32 bpp, 1024x768 -> 800x600 -> 640x480) e toca a intro com a identidade visual NEXUS. A inicialização acontece durante a animação: cada etapa (teclado, disco, NXFS...) aparece como uma linha de log abaixo do status, e o título N.E.X.U.S só entra (`SISTEMA ONLINE`) quando o boot termina. **Qualquer tecla pula** (as etapas que faltarem rodam sem animação). Se a máquina não tiver VBE com framebuffer linear de 32 bpp, ou tiver menos de ~16 MB de RAM, o boot usa a tela de texto clássica.
 
 - `src/intro.c` – `nexus_intro_play()`: double buffering na memória acima de 1 MB (modo *unreal*), tempo real pelo PIT, tudo em ponto fixo
 - `tools/mkassets.py` – gera `build/assets.h` (glifos Michroma / JetBrains Mono em 4 bits + tabelas de atan/easing). Fontes em `tools/fonts/`, licença SIL OFL 1.1
