@@ -1,4 +1,4 @@
-/* NEXUS.OS - ponto de entrada do kernel */
+/* NEXUS.OS kernel entry point */
 #include "nexus.h"
 #include "logo.h"
 
@@ -37,8 +37,8 @@ static void failline(const char *m)
     delay(6);
 }
 
-/* Etapas de inicializacao, uma por chamada: usadas pela intro grafica (log no HUD)
- * e pelo boot em modo texto. Retorna BOOT_OK/BOOT_WARN/BOOT_FAIL ou BOOT_END. */
+/* Runs one boot step per call (used by the intro and the text boot).
+ * Returns BOOT_OK, BOOT_WARN, BOOT_FAIL or BOOT_END. */
 static u32 boot_drive;
 static int boot_stage, fs_ok;
 
@@ -90,7 +90,7 @@ static int boot_next(const char **msg)
         }
 }
 
-/* Boot em modo texto: usado quando nao ha video VBE para a intro */
+/* Text-mode boot, used when the intro is unavailable */
 static void text_boot(void)
 {
     vid_clear();
@@ -136,7 +136,7 @@ void kmain(u32 drive)
 {
     boot_drive = drive;
     vid_init();
-    if (!nexus_intro_play(boot_next)) /* a intro executa as etapas e mostra o log */
+    if (!nexus_intro_play(boot_next))
         text_boot();
     vid_clear();
     cputs(C_CYAN, "NEXUS.OS");

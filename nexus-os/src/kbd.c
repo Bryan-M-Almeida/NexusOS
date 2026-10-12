@@ -1,4 +1,4 @@
-/* Teclado via BIOS INT 16h */
+/* Keyboard via BIOS INT 16h */
 #include "nexus.h"
 
 u16 getkey(void)
@@ -8,7 +8,7 @@ u16 getkey(void)
     return ax;
 }
 
-/* Le uma linha. Seta para cima recupera o ultimo comando (buffer 'last'). */
+/* Read a line; Up arrow recalls the previous command ('last'). */
 void readline(char *buf, int max, char *last)
 {
     int n = 0;
@@ -34,7 +34,7 @@ void readline(char *buf, int max, char *last)
             continue;
         }
         if (ch == 0 && sc == 0x48 && last)
-        { /* seta para cima */
+        { /* up arrow */
             while (n > 0)
             {
                 n--;

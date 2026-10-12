@@ -1,5 +1,5 @@
-; NEXUS.OS - bootloader (setor 0). Carrega o kernel via INT 13h estendido (LBA)
-; para 1000:0000 e salta para ele. Funciona em HD virtual e pendrive (USB-HDD).
+; NEXUS.OS boot sector. Loads the kernel to 1000:0000 via INT 13h extensions (LBA)
+; and jumps to it. Works on HDDs and USB drives (USB-HDD).
 bits 16
 org 0x7C00
 
@@ -21,7 +21,7 @@ start:
     mov si, msg_boot
     call print
 
-    mov ah, 0x41                ; BIOS suporta LBA estendido?
+    mov ah, 0x41                ; INT 13h extensions present?
     mov bx, 0x55AA
     mov dl, [drive]
     int 0x13
@@ -33,7 +33,7 @@ start:
 .next:
     cmp word [remain], 0
     je  .done
-    mov ax, 16                  ; le em blocos de 16 setores
+    mov ax, 16                  ; read in chunks of 16 sectors
     cmp [remain], ax
     jae .set
     mov ax, [remain]
@@ -57,7 +57,7 @@ start:
     mov ax, [chunk]
     sub [remain], ax
     add [dap_lba], ax
-    shl ax, 5                   ; setores * 512 / 16 = paragrafos
+    shl ax, 5                   ; sectors * 512 / 16 = paragraphs
     add [dap_seg], ax
     jmp .next
 
@@ -100,7 +100,7 @@ dap_seg:  dw 0x1000
 dap_lba:  dq 1
 
 times 446 - ($ - $$) db 0
-; tabela de particoes: uma entrada ativa (alguns BIOS exigem para boot USB)
+; partition table: one active entry (some BIOSes require it to boot from USB)
 db 0x80, 0x00, 0x02, 0x00, 0xDA, 0xFE, 0xFF, 0xFF
 dd 1
 dd 2047

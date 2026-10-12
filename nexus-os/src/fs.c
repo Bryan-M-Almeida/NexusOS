@@ -1,7 +1,7 @@
-/* NXFS - sistema de arquivos proprio do NEXUS.OS
- *   LBA FS_LBA        : superbloco ("NEXUSFS1")
- *   LBA FS_LBA+1 ...  : tabela de FS_MAX entradas de 32 bytes
- * Entrada: tipo(1) pai(1) nome(30). Entrada 0 = raiz "/".
+/* NXFS, the NEXUS.OS file system
+ *   LBA FS_LBA       : superblock ("NEXUSFS1")
+ *   LBA FS_LBA+1 ... : table of FS_MAX 32-byte entries
+ * Entry: type(1) parent(1) name(30). Entry 0 is the root "/".
  */
 #include "nexus.h"
 
@@ -215,7 +215,7 @@ int fs_rename(int idx, const char *name)
     return flush_ent(idx);
 }
 
-/* 1 se 'node' esta dentro de 'anc' (ou e o proprio) */
+/* 1 if 'node' is 'anc' or one of its descendants */
 int fs_within(int anc, int node)
 {
     for (int guard = 0; guard < FS_MAX; guard++)

@@ -1,4 +1,4 @@
-/* Shell do NEXUS.OS */
+/* NEXUS.OS shell */
 #include "nexus.h"
 
 static int cwd = 0;
@@ -240,7 +240,7 @@ void shell_run(int ok)
                 i++;
             }
         }
-        /* 'line' foi cortado em tokens; refaz 'last' juntando os argumentos */
+        /* 'line' was tokenized; rebuild 'last' from the arguments */
         {
             int o = 0;
             for (int a = 0; a < n; a++)

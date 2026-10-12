@@ -1,4 +1,4 @@
-/* Video: modo texto VGA 80x25, escrita direta em 0xB800 (via GS) */
+/* VGA 80x25 text mode, direct writes to 0xB800 via GS */
 #include "nexus.h"
 
 #define W 80

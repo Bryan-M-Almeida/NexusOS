@@ -1,4 +1,4 @@
-/* NEXUS.OS - cabecalho comum (modo real 16-bit, compilado com gcc -m16) */
+/* NEXUS.OS common header (16-bit real mode, built with gcc -m16) */
 #ifndef NEXUS_H
 #define NEXUS_H
 
@@ -6,7 +6,7 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 
-/* cores VGA */
+/* VGA colors */
 #define C_NORMAL 0x07
 #define C_GRAY 0x08
 #define C_BLUE 0x09
@@ -17,7 +17,7 @@ typedef unsigned int u32;
 #define C_YELLOW 0x0E
 #define C_WHITE 0x0F
 
-/* ---- portas de I/O ---- */
+/* ---- I/O ports ---- */
 static inline void outb(u16 p, u8 v) { asm volatile("outb %0,%1" ::"a"(v), "Nd"(p)); }
 static inline void outw(u16 p, u16 v) { asm volatile("outw %0,%1" ::"a"(v), "Nd"(p)); }
 static inline u8 inb(u16 p)
@@ -33,7 +33,7 @@ static inline u16 inw(u16 p)
     return v;
 }
 
-/* ---- memoria "flat" de 4GB via FS (modo unreal, ver start.asm) ---- */
+/* ---- 4 GB flat memory via FS (unreal mode, see start.asm) ---- */
 static inline u8 rd8(u32 a)
 {
     u8 v;
@@ -73,7 +73,7 @@ void puthex(u32 n, int digits);
 u16 getkey(void); /* AH=scancode, AL=ascii */
 void readline(char *buf, int max, char *last);
 
-/* ---- disk.c (INT 13h estendido: funciona com pendrive e VM) ---- */
+/* ---- disk.c (INT 13h extensions) ---- */
 int disk_init(u8 drive);
 int disk_read(u32 lba, void *buf);
 int disk_write(u32 lba, const void *buf);
@@ -82,8 +82,8 @@ u8 disk_drive(void);
 u8 disk_is_cd(void);
 
 /* ---- fs.c : NXFS ---- */
-#define FS_LBA 128 /* setor onde o NXFS comeca no disco */
-#define FS_MAX 224 /* maximo de entradas (pastas+arquivos) */
+#define FS_LBA 128 /* first NXFS sector */
+#define FS_MAX 224 /* max entries (folders + files) */
 #define FS_NAMELEN 30
 #define FS_DIR 1
 #define FS_FILE 2
@@ -126,20 +126,20 @@ void power_reboot(void);
 /* ---- shell.c ---- */
 void shell_run(int fs_ok);
 
-/* ---- intro.c (animacao de abertura NEXUS) ---- */
+/* ---- intro.c (NEXUS animations) ---- */
 #define BOOT_END (-1)
 #define BOOT_OK 0
 #define BOOT_WARN 1
 #define BOOT_FAIL 2
-typedef int (*boot_step_fn)(const char **msg); /* executa a proxima etapa do boot */
-/* Toca a intro executando as etapas de boot no meio dela (log no HUD).
- * Retorna 0 sem fazer nada se nao houver VBE 32 bpp / memoria: use o boot em texto. */
+typedef int (*boot_step_fn)(const char **msg); /* runs the next boot step */
+/* Plays the intro and runs the boot steps during it.
+ * Returns 0 without doing anything if graphics are unavailable. */
 int nexus_intro_play(boot_step_fn next);
-/* Animacao de desligamento (antes de power_off); sem VBE nao faz nada. */
+/* Shutdown animation, played before power_off(); no-op without graphics. */
 void nexus_outro_play(void);
 
 /* ---- start.asm ---- */
 extern void enter_unreal(void);
-extern u32 boot_base; /* LBA onde a imagem comeca no disco (0, ou o NEXUS.IMG dentro da ISO hibrida) */
+extern u32 boot_base; /* image start LBA (non-zero when booted from the hybrid ISO) */
 
 #endif

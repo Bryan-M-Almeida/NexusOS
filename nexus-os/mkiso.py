@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Monta nexus.iso hibrida: El Torito (CD, sem emulacao) + MBR no setor 0 (pendrive em modo DD).
-Uso: mkiso.py boot_cd.bin boot_hyb.bin nexus.img out.iso"""
+"""Build the hybrid nexus.iso: El Torito (no emulation) + MBR in sector 0 for raw USB boot.
+Usage: mkiso.py boot_cd.bin boot_hyb.bin nexus.img out.iso"""
 import struct, subprocess, sys, os, shutil, tempfile
 bootcd, boothyb, img, out = sys.argv[1:5]
 d = tempfile.mkdtemp()
@@ -19,18 +19,18 @@ def find_lba():
         ln = iso[pos]; nl = iso[pos+32]; name = iso[pos+33:pos+33+nl].decode()
         if name.startswith("NEXUS.IMG"): return struct.unpack_from("<I", iso, pos+2)[0]
         pos += ln
-    raise SystemExit("NEXUS.IMG nao achado no ISO")
+    raise SystemExit("NEXUS.IMG not found in the ISO")
 build(0); lba = find_lba(); build(lba); assert find_lba() == lba
 shutil.rmtree(d)
 
-# MBR hibrido: a area de sistema da ISO (primeiros 32 KiB) fica livre, o setor 0 vira o MBR
+# Hybrid MBR: the ISO system area (first 32 KiB) is unused, so sector 0 becomes the MBR
 mbr = bytearray(open(boothyb,'rb').read()); assert len(mbr) == 512 and mbr[510:] == b"\x55\xaa"
-base = lba * 4                                  # setor de 2048 -> LBA de 512
+base = lba * 4                                  # 2048-byte sector -> 512-byte LBA
 struct.pack_into("<I", mbr, 0x1B0, base)
 struct.pack_into("<I", mbr, 446 + 8, base)
 with open(out, 'r+b') as f:
-    assert f.read(512) == bytes(512), "area de sistema da ISO nao esta vazia"
+    assert f.read(512) == bytes(512), "ISO system area is not empty"
     f.seek(0); f.write(mbr)
     f.seek(0, 2); size = f.tell()
-    f.truncate(max(size, (base + 2048) * 512))   # garante a imagem inteira dentro do arquivo
-print(f"{out}: {os.path.getsize(out)//1024} KiB, imagem no setor {lba} (LBA {base}), hibrida (CD + USB)")
+    f.truncate(max(size, (base + 2048) * 512))   # keep the whole image inside the file
+print(f"{out}: {os.path.getsize(out)//1024} KiB, image at sector {lba} (LBA {base}), hybrid (CD + USB)")

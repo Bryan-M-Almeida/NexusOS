@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Monta nexus.img: boot (LBA 0) + kernel (LBA 1..) + NXFS (LBA 128) com pastas de exemplo."""
+"""Build nexus.img: boot sector (LBA 0) + kernel (LBA 1..) + NXFS (LBA 128) with sample folders."""
 import struct, sys
 FS_LBA, FS_MAX, IMG_SECT = 128, 224, 2048
 boot, kernel, out = (open(sys.argv[1],'rb').read(), open(sys.argv[2],'rb').read(), sys.argv[3])
 assert len(boot) == 512
-assert len(kernel) <= (FS_LBA-1)*512, "kernel passou de 63KB"
+assert len(kernel) <= (FS_LBA-1)*512, "kernel exceeds 63 KiB"
 
-ents = [(1,0,b"/")]                       # raiz
+ents = [(1,0,b"/")]                       # root
 def add(t, parent, name): ents.append((t,parent,name.encode())); return len(ents)-1
 sis = add(1,0,"sistema"); doc = add(1,0,"documentos"); proj = add(1,0,"projetos")
 add(2,sis,"nexus.cfg"); add(2,doc,"leiame.txt"); add(1,proj,"web"); add(1,proj,"c"); add(2,0,"bem-vindo.txt")

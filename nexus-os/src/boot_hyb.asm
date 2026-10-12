@@ -1,9 +1,8 @@
-; NEXUS.OS - MBR da ISO hibrida (setor 0 da nexus.iso).
-; Quando a ISO e gravada "crua" num pendrive (Rufus modo DD, dd, balenaEtcher) e o PC
-; da boot por ela como disco, a BIOS executa este setor. Ele carrega o kernel do
-; NEXUS.IMG que esta dentro da ISO (a partir de [imgbase] em setores de 512) e avisa o
-; kernel do deslocamento: ESI = 'NXB1', EBX = imgbase (ver start.asm / disk.c).
-; No boot por CD (VirtualBox, gravador de DVD) este setor e ignorado: vale o El Torito.
+; NEXUS.OS hybrid ISO MBR (sector 0 of nexus.iso).
+; Used when the ISO is written raw to a USB drive and booted as a disk. Loads the
+; kernel from the NEXUS.IMG embedded in the ISO (starting at [imgbase], 512-byte LBA)
+; and passes the offset to the kernel: ESI = 'NXB1', EBX = imgbase.
+; CD boots ignore this sector and use El Torito instead.
 bits 16
 org 0x7C00
 
@@ -25,7 +24,7 @@ start:
     mov si, msg_boot
     call print
 
-    mov ah, 0x41                ; BIOS suporta LBA estendido?
+    mov ah, 0x41                ; INT 13h extensions present?
     mov bx, 0x55AA
     mov dl, [drive]
     int 0x13
@@ -33,7 +32,7 @@ start:
     cmp bx, 0xAA55
     jne .noedd
 
-    mov eax, [imgbase]          ; kernel = setor 1 do NEXUS.IMG
+    mov eax, [imgbase]          ; kernel = NEXUS.IMG sector 1
     inc eax
     mov [dap_lba], eax
     mov word [remain], KSECT
@@ -110,10 +109,10 @@ dap_seg:  dw 0x1000
 dap_lba:  dq 0
 
 times 0x1B0 - ($ - $$) db 0
-imgbase:  dd 0                  ; preenchido por mkiso.py (LBA de 512 do NEXUS.IMG)
+imgbase:  dd 0                  ; NEXUS.IMG LBA, set by mkiso.py
 
 times 446 - ($ - $$) db 0
-; particao ativa cobrindo o NEXUS.IMG (inicio preenchido por mkiso.py)
+; active partition covering NEXUS.IMG (start LBA set by mkiso.py)
 db 0x80, 0x00, 0x02, 0x00, 0xDA, 0xFE, 0xFF, 0xFF
 dd 0
 dd 2048

@@ -1,4 +1,4 @@
-/* Disco via BIOS INT 13h extendido (LBA). Funciona em HD virtual e pendrive. */
+/* Disk access via BIOS INT 13h extensions (LBA): HDD, USB and CD. */
 #include "nexus.h"
 
 struct dap
@@ -18,10 +18,10 @@ static struct dap dap;
 static struct edd edd;
 static u8 drive;
 
-/* Modo CD/ISO: BIOS entrega setores de 2048 bytes e o midia e somente leitura.
- * Leituras: convertemos LBA de 512 -> setor de 2048. Escritas: ficam so na RAM. */
+/* CD/ISO mode: 2048-byte sectors, read-only media.
+ * Reads map 512-byte LBAs to 2048-byte sectors; writes are dropped (RAM only). */
 static u8 cd_mode;
-static u32 cd_base; /* setor do NEXUS.IMG dentro do ISO (gravado pelo bootloader) */
+static u32 cd_base; /* NEXUS.IMG sector inside the ISO (set by the bootloader) */
 static u8 cdbuf[2048];
 static u32 cd_cached = 0xFFFFFFFF;
 
@@ -56,16 +56,16 @@ int disk_init(u8 drv)
     asm volatile("int $0x13" : "+a"(ax), "+b"(bx), "=@ccc"(cf) : "d"((u16)drv)
                  : "memory", "cx", "si", "di");
     if (cf || bx != 0xAA55)
-        return -1; /* BIOS sem LBA estendido */
+        return -1; /* no INT 13h extensions */
     memset(&edd, 0, sizeof edd);
     edd.size = 0x1E;
     if (bios13(0x4800, &edd))
         edd.sec_lo = 0;
     if (edd.bps == 2048 || drv >= 0xE0)
-    { /* boot por CD/ISO */
+    { /* booted from CD/ISO */
         cd_mode = 1;
-        cd_base = rd32(0x7C40); /* campo gravado em boot_cd.asm */
-        edd.sec_lo = 2048;      /* tamanho da imagem em setores de 512 */
+        cd_base = rd32(0x7C40); /* field set by boot_cd.asm */
+        edd.sec_lo = 2048;      /* image size in 512-byte sectors */
     }
     return 0;
 }
@@ -79,7 +79,7 @@ static int disk_rw(int write, u32 lba, void *buf)
     if (cd_mode)
     {
         if (write)
-            return 0; /* volatil: so memoria */
+            return 0; /* read-only media */
         u32 sec = cd_base + lba / 4;
         for (int t = 0; sec != cd_cached; t++)
         {

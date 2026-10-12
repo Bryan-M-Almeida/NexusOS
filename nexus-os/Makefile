@@ -13,7 +13,7 @@ build:
 build/%.o: src/%.c src/nexus.h src/logo.h | build
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# glifos (Michroma / JetBrains Mono) e tabelas da intro, gerados em tempo de build
+# intro glyphs (Michroma / JetBrains Mono) and lookup tables
 build/assets.h: tools/mkassets.py tools/fonts/Michroma-Regular.ttf tools/fonts/JetBrainsMono-Regular.ttf | build
 	python3 tools/mkassets.py tools/fonts $@
 
@@ -46,7 +46,7 @@ nexus.iso: build/boot_cd.bin build/boot_hyb.bin nexus.img mkiso.py
 run-iso: nexus.iso
 	qemu-system-i386 -m 64 -cdrom nexus.iso -boot d
 
-# simula a ISO gravada num pendrive (Rufus modo DD)
+# boot the ISO as a raw disk, like a USB drive written in DD mode
 run-usb: nexus.iso
 	qemu-system-i386 -m 64 -drive format=raw,file=nexus.iso
 

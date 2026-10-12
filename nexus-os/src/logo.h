@@ -1,4 +1,4 @@
-/* gerado: logo NEXUS.OS */
+/* NEXUS.OS ASCII logo */
 static const char *const LOGO[5] = {
     " _   _  _____ __  __ _   _  ____       ___   ____",
     "| \\ | || ____|\\ \\/ /| | | |/ ___|     / _ \\ / ___|",

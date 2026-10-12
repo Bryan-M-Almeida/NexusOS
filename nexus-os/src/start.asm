@@ -1,4 +1,4 @@
-; NEXUS.OS - entrada do kernel (modo real, carregado em 1000:0000)
+; NEXUS.OS kernel entry (real mode, loaded at 1000:0000)
 bits 16
 section .text.start
 global _start
@@ -17,13 +17,13 @@ _start:
     mov esp, 0xFFF0
     sti
     cld
-    mov edi, __bss_start        ; zera .bss (nao esta no arquivo)
+    mov edi, __bss_start        ; clear .bss
     mov ecx, __bss_end
     sub ecx, edi
     xor al, al
     rep stosb
-    xor eax, eax                ; ISO hibrida gravada em pendrive: a imagem comeca no
-    cmp esi, 0x3142584E         ; LBA passado em EBX (assinatura 'NXB1' em ESI)
+    xor eax, eax                ; hybrid ISO boot: image start LBA in EBX
+    cmp esi, 0x3142584E         ; when ESI holds the 'NXB1' signature
     jne .nobase
     mov eax, ebx
 .nobase:
@@ -32,7 +32,7 @@ _start:
     mov gs, ax
     xor ax, ax
     mov fs, ax
-    movzx edx, dl               ; DL = drive de boot (passado pelo bootloader)
+    movzx edx, dl               ; DL = boot drive
     push edx
     call dword kmain
 .hang:
@@ -40,7 +40,7 @@ _start:
     hlt
     jmp .hang
 
-; Modo "unreal": deixa FS com limite de 4GB para ler tabelas ACPI acima de 1MB
+; Unreal mode: give FS a 4 GB limit to access memory above 1 MB
 enter_unreal:
     cli
     xor eax, eax

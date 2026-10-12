@@ -1,6 +1,6 @@
-/* Desligar / reiniciar.
- * Desligar: ACPI real (parse RSDP->RSDT->FADT->DSDT "_S5_", exige modo unreal para
- * ler tabelas acima de 1MB) -> portas de VMs (QEMU/Bochs/VirtualBox) -> APM.
+/* Power off and reboot.
+ * Power off: ACPI (RSDP -> RSDT -> FADT -> DSDT "_S5_", needs unreal mode for tables
+ * above 1 MB), then VM ports (QEMU/Bochs/VirtualBox), then APM.
  */
 #include "nexus.h"
 
@@ -89,7 +89,7 @@ static void acpi_off(void)
         return;
 
     if (!(inw((u16)pm1a) & 1) && smi && enable)
-    { /* habilita ACPI se preciso */
+    { /* enable ACPI if needed */
         outb((u16)smi, enable);
         for (u32 i = 0; i < 300000 && !(inw((u16)pm1a) & 1); i++)
             asm volatile("nop");
@@ -124,7 +124,7 @@ void power_off(void)
     enter_unreal();
     acpi_off();
     outw(0x604, 0x2000);  /* QEMU */
-    outw(0xB004, 0x2000); /* Bochs / QEMU antigo */
+    outw(0xB004, 0x2000); /* Bochs / older QEMU */
     outw(0x4004, 0x3400); /* VirtualBox */
     apm_off();
     cputs(C_YELLOW, "\nNao foi possivel desligar por software.\nPode desligar o computador manualmente.\n");
@@ -138,10 +138,10 @@ void power_reboot(void)
     for (u32 i = 0; i < 0x10000; i++)
         if (!(inb(0x64) & 2))
             break;
-    outb(0x64, 0xFE); /* pulso de reset do controlador de teclado */
+    outb(0x64, 0xFE); /* keyboard controller reset pulse */
     for (u32 i = 0; i < 1000000; i++)
         asm volatile("nop");
-    asm volatile("ljmp $0xFFFF,$0x0000"); /* fallback: vetor de reset do BIOS */
+    asm volatile("ljmp $0xFFFF,$0x0000"); /* fallback: BIOS reset vector */
     for (;;)
         asm volatile("hlt");
 }
